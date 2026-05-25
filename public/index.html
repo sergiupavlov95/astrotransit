@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AstroTransit — Tranzitele tale planetare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#07060e;--bg2:#0e0c1a;--bg3:#141228;--gold:#c9a84c;--gold2:#e8cc7a;--text:#e8e4d8;--text2:#9990b0;--text3:#5a5470;--border:rgba(201,168,76,0.15);--border2:rgba(201,168,76,0.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden}
+.stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s)}
+@keyframes twinkle{0%,100%{opacity:var(--min,0.1)}50%{opacity:var(--max,0.8)}}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(80px);animation:orbFloat 12s ease-in-out infinite}
+.orb1{width:500px;height:500px;background:radial-gradient(circle,rgba(108,79,160,0.12),transparent 70%);top:-100px;right:-100px}
+.orb2{width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,0.06),transparent 70%);bottom:-80px;left:-80px;animation-delay:-6s}
+@keyframes orbFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-30px) scale(1.05)}}
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 32px}
+nav{padding:24px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border2)}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.logo-glyph{font-size:24px;color:var(--gold)}
+.logo-text{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--text);letter-spacing:.08em}
+.logo-text span{color:var(--gold)}
+.nav-links{display:flex;gap:28px}
+.nav-links a{font-size:13px;color:var(--text2);text-decoration:none;letter-spacing:.04em;transition:color .2s}
+.nav-links a:hover{color:var(--gold)}
+.hero{text-align:center;padding:80px 0 60px}
+.hero-tag{display:inline-block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);border:1px solid var(--border);padding:6px 16px;border-radius:20px;margin-bottom:28px}
+.hero h1{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,7vw,86px);font-weight:300;line-height:1.05;margin-bottom:20px}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:15px;color:var(--text2);max-width:480px;margin:0 auto 48px;line-height:1.7}
+.hero-cta{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:#07060e;padding:14px 32px;border-radius:30px;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:.04em;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .25s}
+.hero-cta:hover{background:var(--gold2);transform:translateY(-2px)}
+.hero-divider{margin-top:64px;display:flex;align-items:center;gap:20px;justify-content:center;opacity:.35}
+.hero-divider::before,.hero-divider::after{content:'';flex:1;max-width:120px;height:1px;background:var(--gold)}
+.planet-strip{display:flex;justify-content:center;gap:32px;padding:32px 0;flex-wrap:wrap}
+.planet-item{text-align:center;opacity:.6;transition:opacity .3s;cursor:default}
+.planet-item:hover{opacity:1}
+.p-glyph{font-size:28px;display:block;margin-bottom:4px}
+.p-name{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text2)}
+.form-section{padding:60px 0 80px}
+.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:48px;position:relative;overflow:hidden}
+.form-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(108,79,160,0.08),transparent 60%);pointer-events:none}
+.form-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:8px}
+.form-sub{font-size:13px;color:var(--text2);margin-bottom:36px;line-height:1.6}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.field{display:flex;flex-direction:column;gap:8px;position:relative}
+.field label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text2)}
+.field input,.field select{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 16px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;outline:none;transition:border .2s;-webkit-appearance:none;appearance:none;width:100%}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%239990b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.field input:focus,.field select:focus{border-color:rgba(201,168,76,0.5);background:rgba(20,18,40,0.8)}
+.field input::placeholder{color:var(--text3)}
+.field select option{background:var(--bg2)}
+.form-full{grid-column:1/-1}
+/* Autocomplete dropdown */
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-top:4px;z-index:100;max-height:200px;overflow-y:auto;display:none}
+.autocomplete-list.open{display:block}
+.ac-item{padding:11px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:1px solid var(--border2);transition:background .15s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.active{background:rgba(201,168,76,0.08);color:var(--text)}
+.ac-item strong{color:var(--gold);font-weight:500}
+/* API key field */
+.api-notice{font-size:12px;color:var(--text3);margin-top:4px;line-height:1.5}
+.api-notice a{color:var(--gold);text-decoration:none}
+.submit-btn{width:100%;margin-top:8px;padding:16px;background:var(--gold);color:#07060e;border:none;border-radius:12px;font-size:15px;font-weight:500;font-family:'DM Sans',sans-serif;letter-spacing:.04em;cursor:pointer;transition:all .25s}
+.submit-btn:hover{background:var(--gold2);transform:translateY(-1px)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* Error box */
+.error-box{background:rgba(226,75,74,0.1);border:1px solid rgba(226,75,74,0.3);border-radius:10px;padding:14px 16px;font-size:13px;color:#F09595;margin-top:16px;display:none;line-height:1.5}
+.error-box.show{display:block}
+/* Loading overlay */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(7,6,14,0.95);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+.loading-overlay.show{display:flex}
+.load-glyph{font-size:48px;color:var(--gold);animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;text-align:center}
+.load-sub{font-size:13px;color:var(--text2);text-align:center}
+/* Dashboard */
+.dashboard{display:none;padding:40px 0 80px}
+.dashboard.show{display:block}
+.dash-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:40px;flex-wrap:wrap;gap:16px}
+.dash-profile{display:flex;align-items:center;gap:20px}
+.dash-avatar{width:64px;height:64px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.dash-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;margin-bottom:4px}
+.dash-meta{font-size:13px;color:var(--text2)}
+.back-btn{background:none;border:1px solid var(--border);border-radius:10px;padding:10px 18px;color:var(--text2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.back-btn:hover{border-color:var(--gold);color:var(--gold)}
+.tabs-wrap{display:flex;border-bottom:1px solid var(--border2);margin-bottom:32px;overflow-x:auto}
+.tab-btn{padding:12px 24px;font-size:13px;color:var(--text2);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.transits-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.transits-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.form-full{grid-column:1}.form-card{padding:28px 20px}.hero{padding:50px 0 40px}.hero h1{font-size:40px}.wrap{padding:0 16px}nav{padding:16px 0}.nav-links{display:none}}
+.transit-card{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:22px;position:relative;overflow:hidden;transition:border .2s,transform .2s}
+.transit-card:hover{border-color:var(--border);transform:translateY(-2px)}
+.tc-accent{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.tc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.tc-planet{font-size:16px;font-weight:400}
+.tc-period{font-size:11px;color:var(--text2);background:var(--bg3);padding:3px 9px;border-radius:10px;border:1px solid var(--border2)}
+.tc-casa{font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:.04em}
+.tc-title{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300;margin-bottom:8px}
+.tc-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px}
+.tc-advice{font-size:12px;color:var(--gold);line-height:1.5;display:flex;gap:6px;align-items:flex-start}
+.tc-advice::before{content:'✦';flex-shrink:0;margin-top:1px}
+.intensity-row{display:flex;gap:4px;margin:10px 0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--bg3);border:1px solid var(--text3)}
+.dot.on{background:var(--gold);border-color:var(--gold)}
+.more-btn{display:inline-block;margin-top:12px;font-size:12px;color:var(--text3);cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;transition:color .2s;padding:0}
+.more-btn:hover{color:var(--gold)}
+.advice-block{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:32px;font-size:14px;color:var(--text2);line-height:1.9;white-space:pre-wrap}
+.quick-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.q-pill{padding:8px 16px;border-radius:20px;font-size:12px;border:1px solid var(--border);background:none;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.q-pill:hover{border-color:var(--gold);color:var(--gold)}
+.planets-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.planet-row-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:18px 20px;display:grid;grid-template-columns:48px 1fr auto;gap:16px;align-items:center;transition:border .2s}
+.planet-row-card:hover{border-color:var(--border)}
+.planet-glyph-big{font-size:26px;text-align:center}
+.planet-info-name{font-size:15px;font-weight:400;margin-bottom:2px}
+.planet-info-pos{font-size:11px;color:var(--text3);letter-spacing:.04em;margin-bottom:6px}
+.planet-info-text{font-size:13px;color:var(--text2);line-height:1.5}
+.planet-stare{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:10px;white-space:nowrap}
+.stare-activ{background:rgba(29,158,117,0.15);color:#5DCAA5;border:1px solid rgba(29,158,117,0.2)}
+.stare-retrograd{background:rgba(226,75,74,0.1);color:#F09595;border:1px solid rgba(226,75,74,0.2)}
+.stare-neutru{background:var(--bg3);color:var(--text3);border:1px solid var(--border2)}
+.planet-detail-btn{margin-top:8px;font-size:11px;color:var(--text3);cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;transition:color .2s}
+.planet-detail-btn:hover{color:var(--gold)}
+.chat-messages{min-height:300px;display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.msg{max-width:85%;padding:14px 18px;border-radius:16px;font-size:14px;line-height:1.65;font-weight:300}
+.msg-ai{background:var(--bg2);border:1px solid var(--border2);border-radius:4px 16px 16px 16px;color:var(--text2);align-self:flex-start}
+.msg-user{background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:16px 4px 16px 16px;color:var(--text);align-self:flex-end}
+.msg-label{font-size:12px;color:var(--gold);margin-bottom:6px}
+.chat-input-row{display:flex;gap:10px}
+.chat-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;outline:none;transition:border .2s}
+.chat-input:focus{border-color:rgba(201,168,76,0.4)}
+.chat-input::placeholder{color:var(--text3)}
+.chat-send{background:var(--gold);border:none;border-radius:12px;width:48px;cursor:pointer;font-size:18px;color:#07060e;transition:all .2s}
+.chat-send:hover{background:var(--gold2)}
+.chat-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.cq{padding:7px 14px;border-radius:16px;font-size:12px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;text-align:left}
+.cq:hover{border-color:rgba(201,168,76,0.3);color:var(--gold)}
+.thinking{display:flex;gap:5px;align-items:center;padding:14px 18px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px 16px 16px 16px;width:fit-content}
+.td{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:think .9s ease-in-out infinite}
+.td:nth-child(2){animation-delay:.15s}.td:nth-child(3){animation-delay:.3s}
+@keyframes think{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px);background:var(--gold)}}
+.section-label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:16px}
+.welcome-msg{background:var(--bg2);border:1px solid var(--border2);border-radius:4px 16px 16px 16px;color:var(--text2);padding:16px 20px;font-size:14px;line-height:1.7;max-width:85%}
+footer{border-top:1px solid var(--border2);padding:32px 0;text-align:center;margin-top:60px}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);margin-bottom:8px;font-weight:300}
+.footer-text{font-size:12px;color:var(--text3);letter-spacing:.04em}
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .5s ease forwards}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.chart-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+@media(max-width:700px){.chart-wrap{grid-template-columns:1fr}}
+.chart-svg-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:center}
+.chart-svg-box svg{max-width:100%;height:auto}
+.planet-table{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px}
+.planet-table-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;margin-bottom:16px;color:var(--gold)}
+.pt-row{display:grid;grid-template-columns:32px 80px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2);font-size:13px}
+.pt-row:last-child{border-bottom:none}
+.pt-glyph{font-size:18px;text-align:center}
+.pt-name{color:var(--text2);font-size:12px}
+.pt-pos{color:var(--text);font-weight:400}
+.pt-retro{font-size:10px;color:#F09595;background:rgba(226,75,74,0.1);border:1px solid rgba(226,75,74,0.2);border-radius:6px;padding:2px 6px}
+.asc-row{background:rgba(201,168,76,0.05);border-radius:8px;padding:10px 0;margin-top:8px}
+.aspects-box{margin-top:16px}
+.asp-row{display:flex;gap:8px;align-items:center;padding:5px 0;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border2)}
+.asp-row:last-child{border-bottom:none}
+.asp-symbol{font-size:14px;width:20px;text-align:center}
+.chart-error{background:rgba(226,75,74,0.1);border:1px solid rgba(226,75,74,0.3);border-radius:10px;padding:16px;color:#F09595;font-size:13px}
+.no-time-note{font-size:11px;color:var(--text3);margin-top:8px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="loading-overlay" id="loading">
+  <div class="load-glyph">✦</div>
+  <div class="load-text">Se calculează astrograma ta</div>
+  <div class="load-sub" id="load-msg">Se analizează pozițiile planetare...</div>
+</div>
+
+<div class="wrap">
+  <nav>
+    <div class="nav-logo">
+      <span class="logo-glyph">✦</span>
+      <span class="logo-text">Astro<span>Transit</span></span>
+    </div>
+    <div class="nav-links">
+      <a href="#form">Astrograma mea</a>
+      <a href="#about">Despre</a>
+    </div>
+  </nav>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="hero-tag">✦ Astrologie personalizată cu AI</div>
+    <h1>Tranzitele<br/>care îți <em>modelează</em><br/>viața</h1>
+    <p class="hero-sub">Descoperă ce planete sunt active în astrograma ta, prin ce perioade treci și ce lecții îți aduce cerul în 2026.</p>
+    <button class="hero-cta" onclick="document.getElementById('form').scrollIntoView({behavior:'smooth'})">✦ Creează astrograma mea</button>
+    <div class="hero-divider"><span>✦</span></div>
+    <div class="planet-strip">
+      <div class="planet-item"><span class="p-glyph">☀</span><span class="p-name">Soare</span></div>
+      <div class="planet-item"><span class="p-glyph">☽</span><span class="p-name">Lună</span></div>
+      <div class="planet-item"><span class="p-glyph">☿</span><span class="p-name">Mercur</span></div>
+      <div class="planet-item"><span class="p-glyph">♀</span><span class="p-name">Venus</span></div>
+      <div class="planet-item"><span class="p-glyph">♂</span><span class="p-name">Marte</span></div>
+      <div class="planet-item"><span class="p-glyph">♃</span><span class="p-name">Jupiter</span></div>
+      <div class="planet-item"><span class="p-glyph">♄</span><span class="p-name">Saturn</span></div>
+      <div class="planet-item"><span class="p-glyph">⛢</span><span class="p-name">Uranus</span></div>
+      <div class="planet-item"><span class="p-glyph">♆</span><span class="p-name">Neptun</span></div>
+      <div class="planet-item"><span class="p-glyph">♇</span><span class="p-name">Pluto</span></div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap" id="form">
+  <section class="form-section">
+    <div class="form-card fade-in">
+      <div class="form-title">Astrograma ta personalizată</div>
+      <div class="form-sub">Completează datele nașterii pentru a primi o analiză completă a tranzitelor planetare, sfaturi personalizate și răspunsuri la întrebările tale.</div>
+      <div class="form-grid">
+
+        <div class="field">
+          <label>Prenume</label>
+          <input type="text" id="f-name" placeholder="ex: Maria"/>
+        </div>
+        <div class="field">
+          <label>Data nașterii</label>
+          <input type="date" id="f-date"/>
+        </div>
+        <div class="field">
+          <label>Ora nașterii</label>
+          <input type="time" id="f-time"/>
+        </div>
+
+        <!-- Locul nasterii cu autocomplete -->
+        <div class="field" id="place-field">
+          <label>Locul nașterii</label>
+          <input type="text" id="f-place" placeholder="Începe să scrii orașul..." autocomplete="off" oninput="onPlaceInput(this.value)" onkeydown="onPlaceKey(event)"/>
+          <div class="autocomplete-list" id="ac-list"></div>
+        </div>
+
+        <div class="field">
+          <label>Ascendent (opțional)</label>
+          <select id="f-asc">
+            <option value="">Nu știu</option>
+            <option>Berbec ♈</option><option>Taur ♉</option><option>Gemeni ♊</option>
+            <option>Rac ♋</option><option>Leu ♌</option><option>Fecioară ♍</option>
+            <option>Balanță ♎</option><option>Scorpion ♏</option><option>Săgetător ♐</option>
+            <option>Capricorn ♑</option><option>Vărsător ♒</option><option>Pești ♓</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Domeniu de interes</label>
+          <select id="f-focus">
+            <option value="general">General — toate domeniile</option>
+            <option value="cariera">Carieră și bani</option>
+            <option value="dragoste">Dragoste și relații</option>
+            <option value="sanatate">Sănătate și energie</option>
+            <option value="spiritual">Dezvoltare personală</option>
+          </select>
+        </div>
+
+        <div class="field form-full">
+          <button class="submit-btn" id="gen-btn" onclick="testAndGenerate()">✦ Generează astrograma mea 2026</button>
+          <div class="error-box" id="err-box"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="dashboard" id="dashboard">
+    <div class="dash-header">
+      <div class="dash-profile">
+        <div class="dash-avatar" id="d-avatar">✦</div>
+        <div>
+          <div class="dash-name" id="d-name">—</div>
+          <div class="dash-meta" id="d-meta">—</div>
+        </div>
+      </div>
+      <button class="back-btn" onclick="goBack()">← Înapoi</button>
+    </div>
+    <div class="tabs-wrap">
+      <button class="tab-btn active" onclick="switchTab('chart',this)">🌐 Hartă Natală</button>
+      <button class="tab-btn" onclick="switchTab('transits',this)">✦ Tranzite</button>
+      <button class="tab-btn" onclick="switchTab('advice',this)">Sfaturi AI</button>
+      <button class="tab-btn" onclick="switchTab('planets',this)">Planete</button>
+      <button class="tab-btn" onclick="switchTab('chat',this)">Întreabă</button>
+    </div>
+    <div id="tab-chart"></div>
+    <div id="tab-transits" style="display:none"></div>
+    <div id="tab-advice" style="display:none"></div>
+    <div id="tab-planets" style="display:none"></div>
+    <div id="tab-chat" style="display:none"></div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer id="about">
+    <div class="footer-logo">✦ AstroTransit</div>
+    <div class="footer-text">Astrologie personalizată · Tranzite planetare · Sfaturi AI · 2026</div>
+  </footer>
+</div>
+
+<script>
+// Stars
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const sz=Math.random()*2+0.5;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*5}s;--delay:-${Math.random()*6}s;--min:${0.05+Math.random()*0.1};--max:${0.4+Math.random()*0.5}`;
+    c.appendChild(s);
+  }
+})();
+
+// ── Autocomplete loc nastere — baza de date locala ──
+const CITIES=[
+  // Moldova
+  ["Chișinău","Moldova"],["Bălți","Moldova"],["Tiraspol","Moldova"],["Bender","Moldova"],
+  ["Rîbnița","Moldova"],["Cahul","Moldova"],["Ungheni","Moldova"],["Soroca","Moldova"],
+  ["Orhei","Moldova"],["Dubăsari","Moldova"],["Comrat","Moldova"],["Strășeni","Moldova"],
+  ["Edineț","Moldova"],["Căușeni","Moldova"],["Anenii Noi","Moldova"],["Telenești","Moldova"],
+  ["Hîncești","Moldova"],["Florești","Moldova"],["Drochia","Moldova"],["Rezina","Moldova"],
+  ["Leova","Moldova"],["Nisporeni","Moldova"],["Criuleni","Moldova"],["Șoldănești","Moldova"],
+  ["Glodeni","Moldova"],["Fălești","Moldova"],["Ialoveni","Moldova"],["Cimișlia","Moldova"],
+  ["Taraclia","Moldova"],["Ocnița","Moldova"],["Dondușeni","Moldova"],["Ștefan Vodă","Moldova"],
+  ["Basarabeasca","Moldova"],["Cantemir","Moldova"],["Vulcănești","Moldova"],
+  // Romania — mari orase
+  ["București","România"],["Cluj-Napoca","România"],["Timișoara","România"],["Iași","România"],
+  ["Constanța","România"],["Craiova","România"],["Brașov","România"],["Galați","România"],
+  ["Ploiești","România"],["Oradea","România"],["Brăila","România"],["Arad","România"],
+  ["Pitești","România"],["Sibiu","România"],["Bacău","România"],["Târgu Mureș","România"],
+  ["Baia Mare","România"],["Buzău","România"],["Botoșani","România"],["Satu Mare","România"],
+  ["Râmnicu Vâlcea","România"],["Drobeta-Turnu Severin","România"],["Suceava","România"],
+  ["Piatra Neamț","România"],["Deva","România"],["Focșani","România"],["Tulcea","România"],
+  ["Bistrița","România"],["Reșița","România"],["Alba Iulia","România"],["Sfântu Gheorghe","România"],
+  ["Vaslui","România"],["Giurgiu","România"],["Dej","România"],["Mediaș","România"],
+  ["Slobozia","Moldova"],["Turda","România"],["Roman","România"],["Câmpina","România"],
+  ["Hunedoara","România"],["Lugoj","România"],["Petroșani","România"],["Zalău","România"],
+  ["Alexandria","România"],["Miercurea Ciuc","România"],["Târgoviște","România"],
+  ["Slatina","România"],["Râmnicu Sărat","România"],["Mangalia","România"],
+  // Europe
+  ["Paris","Franța"],["Lyon","Franța"],["Marseille","Franța"],["Bordeaux","Franța"],
+  ["Toulouse","Franța"],["Nice","Franța"],["Strasbourg","Franța"],["Nantes","Franța"],
+  ["Londra","Marea Britanie"],["Manchester","Marea Britanie"],["Birmingham","Marea Britanie"],
+  ["Glasgow","Marea Britanie"],["Leeds","Marea Britanie"],["Edinburgh","Marea Britanie"],
+  ["Berlin","Germania"],["Hamburg","Germania"],["München","Germania"],["Köln","Germania"],
+  ["Frankfurt","Germania"],["Stuttgart","Germania"],["Düsseldorf","Germania"],
+  ["Madrid","Spania"],["Barcelona","Spania"],["Valencia","Spania"],["Sevilla","Spania"],
+  ["Roma","Italia"],["Milano","Italia"],["Napoli","Italia"],["Torino","Italia"],["Florența","Italia"],
+  ["Moscova","Rusia"],["Sankt Petersburg","Rusia"],["Ekaterinburg","Rusia"],
+  ["Kiev","Ucraina"],["Harkov","Ucraina"],["Odesa","Ucraina"],["Lviv","Ucraina"],
+  ["Varșovia","Polonia"],["Cracovia","Polonia"],["Gdansk","Polonia"],["Wrocław","Polonia"],
+  ["Budapesta","Ungaria"],["Praga","Cehia"],["Viena","Austria"],["Zürich","Elveția"],
+  ["Bruxelles","Belgia"],["Amsterdam","Olanda"],["Stockholm","Suedia"],["Oslo","Norvegia"],
+  ["Copenhaga","Danemarca"],["Helsinki","Finlanda"],["Lisabona","Portugalia"],["Porto","Portugalia"],
+  ["Atena","Grecia"],["Sofia","Bulgaria"],["Belgrad","Serbia"],["Zagreb","Croația"],
+  ["Sarajevo","Bosnia"],["Skopje","Macedonia"],["Tirana","Albania"],["Podgorica","Muntenegru"],
+  ["Bratislava","Slovacia"],["Ljubljana","Slovenia"],["Tallinn","Estonia"],
+  ["Riga","Letonia"],["Vilnius","Lituania"],["Minsk","Belarus"],
+  // Global
+  ["New York","SUA"],["Los Angeles","SUA"],["Chicago","SUA"],["Houston","SUA"],["Phoenix","SUA"],
+  ["Philadelphia","SUA"],["San Antonio","SUA"],["San Diego","SUA"],["Dallas","SUA"],
+  ["San Francisco","SUA"],["Seattle","SUA"],["Boston","SUA"],["Miami","SUA"],["Atlanta","SUA"],
+  ["Toronto","Canada"],["Montreal","Canada"],["Vancouver","Canada"],["Calgary","Canada"],
+  ["Sydney","Australia"],["Melbourne","Australia"],["Brisbane","Australia"],["Perth","Australia"],
+  ["Tokyo","Japonia"],["Osaka","Japonia"],["Beijing","China"],["Shanghai","China"],["Guangzhou","China"],
+  ["Mumbai","India"],["Delhi","India"],["Bangalore","India"],["Kolkata","India"],
+  ["Dubai","Emiratele Arabe"],["Abu Dhabi","Emiratele Arabe"],["Doha","Qatar"],
+  ["Istanbul","Turcia"],["Ankara","Turcia"],["Tel Aviv","Israel"],["Cairo","Egipt"],
+  ["Johannesburg","Africa de Sud"],["Cape Town","Africa de Sud"],["Lagos","Nigeria"],
+  ["São Paulo","Brazilia"],["Rio de Janeiro","Brazilia"],["Buenos Aires","Argentina"],
+  ["Ciudad de México","Mexic"],["Bogotá","Columbia"],["Lima","Peru"],["Santiago","Chile"],
+];
+
+let acSelected=-1, acFiltered=[];
+
+function onPlaceInput(val){
+  const list=document.getElementById('ac-list');
+  const q=val.trim().toLowerCase();
+  if(q.length<1){list.innerHTML='';list.classList.remove('open');acFiltered=[];return;}
+  // Normalizare diacritice pentru cautare
+  const normalize=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const qn=normalize(q);
+  acFiltered=CITIES.filter(([city,country])=>
+    normalize(city).startsWith(qn)||normalize(city).includes(' '+qn)||normalize(country).startsWith(qn)
+  ).slice(0,8);
+  acSelected=-1;
+  if(!acFiltered.length){list.innerHTML='';list.classList.remove('open');return;}
+  list.innerHTML=acFiltered.map(([city,country],i)=>{
+    // Bold pe partea care se potriveste
+    const idx=city.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').indexOf(qn);
+    let cityHtml=city;
+    if(idx>=0&&qn.length>0){
+      cityHtml=city.slice(0,idx)+'<strong>'+city.slice(idx,idx+qn.length)+'</strong>'+city.slice(idx+qn.length);
+    }
+    return`<div class="ac-item" data-i="${i}" onmousedown="selectPlace(${i})">${cityHtml} <span style="color:var(--text3);font-size:11px">· ${country}</span></div>`;
+  }).join('');
+  list.classList.add('open');
+}
+
+function selectPlace(i){
+  const [city,country]=acFiltered[i];
+  document.getElementById('f-place').value=`${city}, ${country}`;
+  const list=document.getElementById('ac-list');
+  list.classList.remove('open');
+  list.innerHTML='';
+  acFiltered=[];
+}
+
+function onPlaceKey(e){
+  const items=document.querySelectorAll('.ac-item');
+  if(!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();acSelected=Math.min(acSelected+1,items.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();acSelected=Math.max(acSelected-1,0);}
+  else if(e.key==='Enter'&&acSelected>=0){e.preventDefault();selectPlace(acSelected);return;}
+  else if(e.key==='Escape'){document.getElementById('ac-list').classList.remove('open');return;}
+  items.forEach((el,i)=>el.classList.toggle('active',i===acSelected));
+}
+document.addEventListener('click',e=>{
+  if(!document.getElementById('place-field').contains(e.target)){
+    document.getElementById('ac-list').classList.remove('open');
+  }
+});
+
+// ── Astrologie engine ──
+let USER={}, chatHistory=[], chatInitialized=false;
+const loadMsgs=['Se analizează pozițiile planetare...','Se calculează tranzitele pentru 2026...','Se identifică aspectele cu natala...','Se pregătesc sfaturile personalizate...','Se construiește profilul tău astrologic...'];
+
+function showError(msg){
+  const b=document.getElementById('err-box');
+  b.textContent=msg;
+  b.classList.add('show');
+}
+function hideError(){document.getElementById('err-box').classList.remove('show')}
+
+function getZodiac(d){
+  const m=d.getMonth()+1,day=d.getDate();
+  if((m===3&&day>=21)||(m===4&&day<=19))return'Berbec';
+  if((m===4&&day>=20)||(m===5&&day<=20))return'Taur';
+  if((m===5&&day>=21)||(m===6&&day<=20))return'Gemeni';
+  if((m===6&&day>=21)||(m===7&&day<=22))return'Rac';
+  if((m===7&&day>=23)||(m===8&&day<=22))return'Leu';
+  if((m===8&&day>=23)||(m===9&&day<=22))return'Fecioară';
+  if((m===9&&day>=23)||(m===10&&day<=22))return'Balanță';
+  if((m===10&&day>=23)||(m===11&&day<=21))return'Scorpion';
+  if((m===11&&day>=22)||(m===12&&day<=21))return'Săgetător';
+  if((m===12&&day>=22)||(m===1&&day<=19))return'Capricorn';
+  if((m===1&&day>=20)||(m===2&&day<=18))return'Vărsător';
+  return'Pești';
+}
+function getGlyph(z){
+  return{Berbec:'♈',Taur:'♉',Gemeni:'♊',Rac:'♋',Leu:'♌',Fecioară:'♍',Balanță:'♎',Scorpion:'♏',Săgetător:'♐',Capricorn:'♑',Vărsător:'♒',Pești:'♓'}[z]||'✦';
+}
+
+async function callClaude(prompt,system,maxTokens){
+  const r=await fetch('/api/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:maxTokens||2000,
+      system:system||'Esti un astrolog expert. Raspunde in romana.',
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  if(!r.ok){
+    let msg='Eroare HTTP '+r.status;
+    try{const e=await r.json();msg=e.error||msg;}catch(x){}
+    throw new Error(msg);
+  }
+  const d=await r.json();
+  if(d.error) throw new Error(d.error||'API error');
+  return d.content?.[0]?.text||'';
+}
+
+function extractJSON(raw){
+  // Try direct parse
+  try{return JSON.parse(raw.trim());}catch(e){}
+  // Strip markdown fences
+  let s=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+  try{return JSON.parse(s);}catch(e){}
+  // Find first { ... } block
+  const m=s.match(/(\{[\s\S]*\})/);
+  if(m){try{return JSON.parse(m[1]);}catch(e){}}
+  throw new Error('Nu s-a putut parsa JSON: '+raw.slice(0,80));
+}
+
+async function testAndGenerate(){
+  hideError();
+  const name=document.getElementById('f-name').value.trim();
+  const date=document.getElementById('f-date').value;
+  const place=document.getElementById('f-place').value.trim();
+  if(!name){showError('Te rog introdu prenumele.');return;}
+  if(!date){showError('Te rog introdu data nașterii.');return;}
+  if(!place){showError('Te rog introdu locul nașterii.');return;}
+  startGenerate();
+}
+
+async function startGenerate(){
+  hideError();
+  const name=document.getElementById('f-name').value.trim();
+  const date=document.getElementById('f-date').value;
+  const time=document.getElementById('f-time').value;
+  const place=document.getElementById('f-place').value.trim();
+  const asc=document.getElementById('f-asc').value;
+  const focus=document.getElementById('f-focus').value;
+
+  const zodiac=getZodiac(new Date(date));
+  USER={name,date,time,place,asc,focus,zodiac};
+  chatHistory=[];
+  chatInitialized=false;
+
+  const btn=document.getElementById('gen-btn');
+  btn.disabled=true;
+  document.getElementById('loading').classList.add('show');
+  let mi=0;
+  const iv=setInterval(()=>{document.getElementById('load-msg').textContent=loadMsgs[mi%loadMsgs.length];mi++;},1800);
+
+  document.getElementById('d-avatar').textContent=getGlyph(zodiac);
+  document.getElementById('d-name').textContent=name;
+  document.getElementById('d-meta').textContent=`${zodiac}${asc?' · Asc '+asc.split(' ')[0]:''} · ${place}`;
+
+  try{
+    await buildNatalChart();
+    await buildTransits();
+    await buildAdvice();
+    await buildPlanets();
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('dashboard').classList.add('show');
+    document.getElementById('dashboard').scrollIntoView({behavior:'smooth',block:'start'});
+    switchTab('chart',document.querySelectorAll('.tab-btn')[0]);
+  }catch(e){
+    document.getElementById('loading').classList.remove('show');
+    // Show full error details for debugging
+    console.error('Full error:', e);
+    showError('Eroare: '+e.message);
+  }finally{
+    clearInterval(iv);
+    btn.disabled=false;
+  }
+}
+
+async function buildNatalChart(){
+  const {name,date,time,place} = USER;
+  const el = document.getElementById('tab-chart');
+  el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:20px">Se calculează harta natală...</div>';
+  
+  try {
+    const r = await fetch('/api/chart', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({date, time: time||null, place})
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Eroare calcul');
+    
+    USER.chartData = data.chart;
+    USER.cityData = data.city;
+    
+    const {chart, svg} = data;
+    const noTime = !time;
+    
+    // Build planet table
+    const planetColors = {sun:'#FFD700',moon:'#C0C0C0',mercury:'#B0C4DE',venus:'#FFB6C1',mars:'#FF6B6B',jupiter:'#FFA500',saturn:'#DAA520',uranus:'#87CEEB',neptune:'#6495ED'};
+    
+    let tableHTML = `<div class="planet-table">
+      <div class="planet-table-title">✦ Poziții Planetare Exacte</div>
+      ${noTime ? '<div class="no-time-note">⚠ Fără ora nașterii — Ascendentul și Casele nu pot fi calculate precis</div>' : ''}
+      <div style="margin-top:12px">`;
+    
+    for (const p of chart.planets) {
+      const color = planetColors[p.id] || '#c9a84c';
+      tableHTML += `<div class="pt-row">
+        <div class="pt-glyph" style="color:${color}">${p.glyph}</div>
+        <div class="pt-name">${p.name}</div>
+        <div class="pt-pos">${p.label}</div>
+        ${p.retrograde ? '<div class="pt-retro">Retrogr.</div>' : '<div></div>'}
+      </div>`;
+    }
+    
+    if (chart.ascendant) {
+      tableHTML += `<div class="pt-row asc-row">
+        <div class="pt-glyph" style="color:#c9a84c">AC</div>
+        <div class="pt-name">Ascendent</div>
+        <div class="pt-pos" style="color:#c9a84c">${chart.ascendant.label}</div>
+        <div></div>
+      </div>`;
+      tableHTML += `<div class="pt-row">
+        <div class="pt-glyph" style="color:#c9a84c">MC</div>
+        <div class="pt-name">Mijlocul Cerului</div>
+        <div class="pt-pos" style="color:#c9a84c">${chart.mc?.label||'—'}</div>
+        <div></div>
+      </div>`;
+    }
+    
+    tableHTML += `</div>`;
+    
+    // Aspecte
+    if (chart.aspects.length > 0) {
+      tableHTML += `<div class="aspects-box"><div class="planet-table-title" style="font-size:15px;margin-top:16px">Aspecte Majore</div>`;
+      for (const asp of chart.aspects.slice(0, 10)) {
+        tableHTML += `<div class="asp-row">
+          <span class="asp-symbol" style="color:${asp.color}">${asp.symbol}</span>
+          <span>${asp.glyph1} ${asp.planet1}</span>
+          <span style="color:var(--text3)">—</span>
+          <span>${asp.glyph2} ${asp.planet2}</span>
+          <span style="color:var(--text3);margin-left:auto">${asp.aspect} (${asp.orb}°)</span>
+        </div>`;
+      }
+      tableHTML += `</div>`;
+    }
+    
+    tableHTML += `</div>`;
+    
+    el.innerHTML = `
+      <div class="section-label">Hartă Natală · Calcule exacte cu VSOP87</div>
+      <div class="chart-wrap">
+        <div class="chart-svg-box">${svg}</div>
+        ${tableHTML}
+      </div>`;
+      
+  } catch(e) {
+    el.innerHTML = `<div class="chart-error">Eroare la generarea hărții: ${e.message}<br><small>Verifică că orașul introdus e corect (ex: București, România)</small></div>`;
+  }
+}
+
+async function buildTransits(){
+  const {name,date,time,place,asc,focus,zodiac}=USER;
+  const chartInfo = USER.chartData ? USER.chartData.planets.map(p=>p.name+': '+p.label).join(', ') : '';
+  const ascInfo = USER.chartData?.ascendant ? 'Ascendent: '+USER.chartData.ascendant.label : '';
+
+  const p=`Persoana: ${name}, nascut(a) ${date}${time?' ora '+time:''}, ${place}. Zodia: ${zodiac}. ${ascInfo}. Pozitii natale: ${chartInfo}.
+
+Genereaza un raport COMPLET al tranzitelor planetare pentru INTREGUL AN 2026. Pentru fiecare planeta majora (Jupiter, Saturn, Uranus, Neptun, Pluto, Marte, Venus, Mercur, Soare-ecliptica) descrie:
+- In ce zodie/casa se afla in 2026
+- Cand intra si cand iese din acea zodie/casa (data aproximativa)
+- Cat timp sta
+- Ce influenta concreta are asupra acestei persoane
+
+Returneaza DOAR JSON valid fara markdown:
+{"transits":[{"planet":"♃ Jupiter","period":"Ian-Mai 2026","zodie":"Gemeni","casa":"Casa 12","durata":"5 luni","titlu":"Titlu scurt","descriere":"2-3 propozitii personalizate despre influenta pentru aceasta persoana specifica.","sfat":"Sfat practic concret.","culoare":"gold","intensitate":4}]}
+
+Include minim 8 tranzite importante. Culori: gold, purple, teal, coral, blue, gray. Intensitate 1-5.`;
+
+  const el=document.getElementById('tab-transits');
+  el.innerHTML='<div class="section-label">Tranzite 2026 · Raport complet anual</div><div style="color:var(--text2);font-size:13px;padding:20px">Se generează raportul anual complet...</div>';
+
+  try{
+    const raw=await callClaude(p,null,3000);
+    const data=extractJSON(raw);
+    let html='<div class="section-label">Tranzite 2026 · Raport complet anual</div>';
+    data.transits.forEach((t,i)=>{
+      const cc={gold:'var(--gold)',purple:'#9b8ec4',teal:'#5DCAA5',coral:'#F09595',blue:'#87CEEB',gray:'var(--text3)'};
+      const c=cc[t.culoare]||'var(--gold)';
+      const dots='●'.repeat(t.intensitate||3)+'○'.repeat(5-(t.intensitate||3));
+      html+=`<div class="transit-card fade-in" style="animation-delay:${i*0.08}s;opacity:0;border-left:3px solid ${c}">
+        <div class="transit-header">
+          <span class="transit-planet" style="color:${c}">${t.planet}</span>
+          <span class="transit-period">${t.period}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin:4px 0 8px">${t.zodie||''} · ${t.casa||''} · ${t.durata||''}</div>
+        <div class="transit-title">${t.titlu}</div>
+        <div class="transit-desc">${t.descriere}</div>
+        <div class="transit-sfat">💡 ${t.sfat}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px">Intensitate: <span style="color:${c}">${dots}</span></div>
+        <button class="more-btn" onclick="askQuestion('Explică mai detaliat tranzitul ${t.planet} în ${t.casa||t.zodie} pentru mine în 2026')">Detalii →</button>
+      </div>`;
+    });
+    el.innerHTML=html;
+    document.querySelectorAll('.fade-in').forEach(e=>{
+      setTimeout(()=>e.style.opacity='1',50);
+    });
+  }catch(e){
+    el.innerHTML='<div class="section-label">Tranzite 2026</div><div style="color:#F09595;padding:20px">Eroare: '+e.message+'</div>';
+  }
+}
+
+async function buildAdvice(){
+  const {name,date,time,place,asc,focus,zodiac}=USER;
+  const chartInfo = USER.chartData ? USER.chartData.planets.map(p=>p.name+': '+p.label+(p.retrograde?' Rx':'')).join(', ') : '';
+  const ascInfo = USER.chartData?.ascendant ? 'Ascendent: '+USER.chartData.ascendant.label : '';
+  const p=`Persoana: ${name}, nascut(a) ${date}${time?' ora '+time:''}, ${place}. Zodia: ${zodiac}. ${ascInfo}. Pozitii natale: ${chartInfo}. Focus: ${focus}.
+
+Genereaza un raport de sfaturi astrologice personalizate pentru 2026. Structureaza raspunsul EXACT asa:
+
+🌟 **TEMA ANULUI 2026 PENTRU TINE**
+[2-3 propozitii despre tema centrala a anului bazata pe pozitiile natale]
+
+💫 **ENERGIILE DOMINANTE**
+[Descrie 2-3 tranzite majore si cum te afecteaza personal]
+
+❤️ **DRAGOSTE & RELAȚII**
+[Sfaturi specifice bazate pe Venus, casa 7 si tranzitele relevante]
+
+💼 **CARIERĂ & SUCCES**
+[Sfaturi bazate pe Saturn, Jupiter, casa 10]
+
+🌱 **CREȘTERE PERSONALĂ**
+[Ce lectii aduce 2026, bazat pe Noduri, Saturn]
+
+✨ **CELE MAI BUNE PERIOADE**
+[3-4 date/perioade favorabile cu ce sa faci in ele]
+
+⚠️ **PERIOADE DE ATENTIE**
+[2-3 perioade mai dificile si cum sa le navighezi]
+
+🔮 **SFATUL ASTROLOGIC**
+[Un mesaj profund si motivational personalizat]
+
+Scrie in romana, cu caldura, empatie si profunzime. Fii SPECIFIC si PERSONAL.`;
+
+  const el=document.getElementById('tab-advice');
+  el.innerHTML='<div class="section-label">Sfaturi AI · Ghid personal 2026</div><div style="color:var(--text2);font-size:13px;padding:20px">✨ Se generează ghidul tău personal...</div>';
+  try{
+    const raw=await callClaude(p,null,3000);
+    // Format markdown-style text to HTML
+    const formatted = raw
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .split('\n\n').join('</p><p>')
+      .split('\n').join('<br>');
+    const formattedFull = '<p>' + formatted + '</p>';
+    el.innerHTML='<div class="section-label">Sfaturi AI · Ghid personal 2026</div><div style="line-height:1.8;color:var(--text);font-size:14px;padding:8px 0">'+formatted+'</div>';
+  }catch(e){
+    el.innerHTML='<div class="section-label">Sfaturi AI</div><div style="color:#F09595;padding:20px">Eroare: '+e.message+'</div>';
+  }
+}
+
+async function buildPlanets(){
+  const {name,date,time,place,asc,focus,zodiac}=USER;
+  const el=document.getElementById('tab-planets');
+  el.innerHTML='<div class="section-label">Planetele tale · poziții și influențe 2026</div><div class="planets-grid" id="pg"></div>';
+  const pg=document.getElementById('pg');
+
+  // Folosim datele exacte calculate deja
+  const planets = USER.chartData ? USER.chartData.planets : [];
+  const planetColors = {sun:'#FFD700',moon:'#C0C0C0',mercury:'#B0C4DE',venus:'#FFB6C1',mars:'#FF6B6B',jupiter:'#FFA500',saturn:'#DAA520',uranus:'#87CEEB',neptune:'#6495ED'};
+
+  planets.forEach((p,i)=>{
+    const color = planetColors[p.id] || '#c9a84c';
+    const stare = p.retrograde ? 'retrograd' : 'activ';
+    const sc = p.retrograde ? 'stare-retrograd' : 'stare-activ';
+    const card=document.createElement('div');
+    card.className='planet-row-card fade-in';
+    card.style.cssText=`animation-delay:${i*0.07}s;opacity:0`;
+    card.innerHTML=`<div class="planet-glyph-big" style="color:${color}">${p.glyph}</div>
+      <div>
+        <div class="planet-info-name">${p.name}</div>
+        <div class="planet-info-pos" style="color:${color}">${p.label}${p.retrograde?' ℞':''}</div>
+        <div class="planet-info-text" style="font-size:12px;color:var(--text2);margin-top:4px">${p.sign} · ${p.degree}°${p.minute.toString().padStart(2,'0')}'</div>
+        <button class="planet-detail-btn" onclick="askQuestion('Explica detaliat influenta lui ${p.name} in ${p.label} in astrograma mea in 2026')">Influență 2026 →</button>
+      </div>
+      <div><span class="planet-stare ${sc}">${stare}</span></div>`;
+    pg.appendChild(card);
+  });
+
+  // Daca nu avem date calculate, fallback la AI
+  if(planets.length === 0){
+    const p2=`Persoana: ${name}, nascuta ${date}${time?' ora '+time:''}, ${place}. Zodia: ${zodiac}.
+Listeaza 8 planete cu pozitia natala. Raspunde DOAR cu JSON valid, fara markdown, fara text inainte sau dupa:
+{"planets":[{"glyph":"☀","name":"Soare","label":"1° Varsator","retrograde":false}]}`;
+    const raw=await callClaude(p2);
+    const data=extractJSON(raw);
+    (data.planets||[]).forEach((p,i)=>{
+      const card=document.createElement('div');
+      card.className='planet-row-card fade-in';
+      card.style.cssText=`animation-delay:${i*0.07}s;opacity:0`;
+      card.innerHTML=`<div class="planet-glyph-big">${p.glyph||'✦'}</div>
+        <div><div class="planet-info-name">${p.name||''}</div>
+        <div class="planet-info-pos">${p.label||''}</div></div>
+        <div><span class="planet-stare ${p.retrograde?'stare-retrograd':'stare-activ'}">${p.retrograde?'retrograd':'activ'}</span></div>`;
+      pg.appendChild(card);
+    });
+  }
+}
+
+function initChat(){
+  if(chatInitialized)return;
+  chatInitialized=true;
+  const el=document.getElementById('tab-chat');
+  el.innerHTML=`<div class="section-label">Astrolog AI · Întreabă orice</div>
+    <div class="chat-messages" id="chat-msgs">
+      <div class="welcome-msg"><div style="font-size:12px;color:var(--gold);margin-bottom:6px">✦ Astrologul tău</div>Bună, ${USER.name}! Sunt aici să îți răspund la orice întrebare despre astrograma ta, tranzitele din 2026 sau perioadele prin care treci. Ce vrei să afli?</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-inp" placeholder="ex: Când se schimbă energia în bine?" onkeydown="if(event.key==='Enter')sendMsg()"/>
+      <button class="chat-send" onclick="sendMsg()">↗</button>
+    </div>
+    <div class="chat-quick">
+      <button class="cq" onclick="askQuestion('Prin ce perioadă trec acum din punct de vedere astrologic?')">Perioada actuală</button>
+      <button class="cq" onclick="askQuestion('Când se schimbă energia și lucrurile devin mai ușoare?')">Când se schimbă?</button>
+      <button class="cq" onclick="askQuestion('Ce domeniu al vieții mele este cel mai activat de planete în 2026?')">Ce e activat?</button>
+      <button class="cq" onclick="askQuestion('Ce să evit în 2026 conform tranzitelor?')">Ce să evit?</button>
+      <button class="cq" onclick="askQuestion('Care este cea mai importantă lecție astrologică a anului meu?')">Lecția anului</button>
+    </div>`;
+}
+
+async function askQuestion(q){
+  const chatBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b=>b.textContent.includes('Întreabă'));
+  switchTab('chat', chatBtn || document.querySelectorAll('.tab-btn')[4]);
+  initChat();
+  document.getElementById('chat-inp').value=q;
+  await sendMsg();
+}
+
+async function sendMsg(){
+  const inp=document.getElementById('chat-inp');
+  const q=inp.value.trim();
+  if(!q)return;
+  inp.value='';
+  const msgs=document.getElementById('chat-msgs');
+  const um=document.createElement('div');
+  um.className='msg msg-user';
+  um.textContent=q;
+  msgs.appendChild(um);
+  const think=document.createElement('div');
+  think.className='thinking';
+  think.innerHTML='<div class="td"></div><div class="td"></div><div class="td"></div>';
+  msgs.appendChild(think);
+  msgs.scrollTop=msgs.scrollHeight;
+  const {name,date,time,place,asc,focus,zodiac}=USER;
+  const chartInfo = USER.chartData ? USER.chartData.planets.map(p=>p.name+': '+p.label+(p.retrograde?' Rx':'')).join(', ') : '';
+  const ascInfo = USER.chartData?.ascendant ? 'Ascendent: '+USER.chartData.ascendant.label : (asc?'Ascendent '+asc:'');
+  const system=`Ești un astrolog expert, înțelept și empatic. Numele tău este "Astrologul". Vorbești cu ${name}, nascut(ă) pe ${date}${time?' la ora '+time:''} în ${place}.
+
+DATE NATALE (folosește-le DOAR când sunt relevante pentru întrebare):
+Zodia solară: ${zodiac} | ${ascInfo} | Planete: ${chartInfo}
+
+REGULI IMPORTANTE:
+1. Dacă întrebarea e simplă sau personală (salut, ce mai faci, mulțumesc etc.) — răspunde NATURAL și SCURT ca un om, fără astrologie
+2. Dacă întrebarea e astrologică — răspunde detaliat, cu emoji, titluri și sfaturi concrete
+3. Răspunde EXACT la ce te întreabă, nu da un raport astrologic complet dacă nu e cerut
+4. Ton cald, natural, ca un prieten astrolog
+5. Scrie în română
+6. Folosește emoji doar când e natural, nu forțat`;
+  chatHistory.push({role:'user',content:q});
+  try{
+    const r=await fetch('/api/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system,messages:chatHistory.slice(-8)})
+    });
+    if(!r.ok){let m='Eroare '+r.status;try{const e=await r.json();m=e.error||m;}catch(x){}throw new Error(m);}
+    const d=await r.json();
+    const ans = (d.content && d.content[0] && d.content[0].text) 
+      ? d.content[0].text 
+      : (d.error ? 'Eroare: ' + d.error : 'Nu am primit răspuns. Încearcă din nou.');
+    chatHistory.push({role:'assistant',content:ans});
+    think.remove();
+    const am=document.createElement('div');
+    am.className='msg msg-ai';
+    const fmtAns = (function(t){
+      return t
+        .replace(/### (.+)/g, '<br><strong style="color:var(--gold);font-size:15px">$1</strong><br>')
+        .replace(/## (.+)/g, '<br><strong style="color:var(--gold);font-size:16px">$1</strong><br>')
+        .replace(/# (.+)/g, '<br><strong style="color:var(--gold);font-size:17px">$1</strong><br>')
+        .replace(/[*][*](.+?)[*][*]/g, '<strong>$1</strong>')
+        .replace(/[*]([^*]+?)[*]/g, '<em>$1</em>')
+        .split('\n\n').join('<br><br>')
+        .split('\n').join('<br>')
+        .split('* ').join('• ');
+    })(ans);
+    am.innerHTML=`<div class="msg-label">✦ Astrologul tău</div>${fmtAns}`;
+    msgs.appendChild(am);
+  }catch(e){
+    think.remove();
+    const em=document.createElement('div');
+    em.className='msg msg-ai';
+    em.textContent='Eroare: '+e.message;
+    msgs.appendChild(em);
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['chart','transits','advice','planets','chat'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'block':'none';
+  });
+  if(name==='chat')initChat();
+}
+
+function goBack(){
+  document.getElementById('dashboard').classList.remove('show');
+  document.getElementById('form').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
