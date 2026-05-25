@@ -11,98 +11,85 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 
-// Sincronizăm ambele locații posibile pentru fișierele statice
+// Sincronizăm locațiile pentru fișierele statice frontend
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta principală inteligentă (verifică unde se ascunde index.html)
 app.get('/', (req, res) => {
   const rootIndex = path.join(__dirname, 'index.html');
   const publicIndex = path.join(__dirname, 'public', 'index.html');
-
-  if (fs.existsSync(rootIndex)) {
-    return res.sendFile(rootIndex);
-  } else if (fs.existsSync(publicIndex)) {
-    return res.sendFile(publicIndex);
-  } else {
-    res.status(404).send('Eroare critică: Fișierul index.html nu a fost găsit în nicio locație a proiectului!');
-  }
+  if (fs.existsSync(rootIndex)) return res.sendFile(rootIndex);
+  if (fs.existsSync(publicIndex)) return res.sendFile(publicIndex);
+  res.status(404).send('Fișierul index.html nu a fost găsit!');
 });
 
-// Baza de date locală pentru orașe
-const CITY_COORDS = {
-  'telenești': ['Telenești', 47.4994, 28.3644, 2], 'telenesti': ['Telenești', 47.4994, 28.3644, 2],
-  'chișinău': ['Chișinău', 47.0105, 28.8638, 2], 'chisinau': ['Chișinău', 47.0105, 28.8638, 2],
-  'balti': ['Bălți', 47.7617, 27.9289, 2], 'bălți': ['Bălți', 47.7617, 27.9289, 2],
-  'bucurești': ['București', 44.4268, 26.1025, 2], 'bucuresti': ['București', 44.4268, 26.1025, 2]
-};
-
-// ENDPOINT: Căutare orașe
+// ── SERVICIU GLOBAL DE CĂUTARE ORAȘE (Orice oraș din lume prin OpenStreetMap Nominatim) ──
 app.get('/api/cities', async (req, res) => {
-  const query = (req.query.q || '').trim().toLowerCase();
+  const query = (req.query.q || '').trim();
   if (!query || query.length < 2) return res.json([]);
 
-  const localMatches = [];
-  for (const key in CITY_COORDS) {
-    if (key.includes(query)) {
-      const [name, lat, lon, tz] = CITY_COORDS[key];
-      if (!localMatches.some(m => m.display_name === name)) {
-        localMatches.push({ display_name: name, lat, lon, tz });
-      }
-    }
-  }
-  if (localMatches.length > 0) return res.json(localMatches.slice(0, 5));
-
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`, {
-      headers: { 'User-Agent': 'AstroTransitApp/1.0' }
+    // Apelăm baza de date mondială OpenStreetMap
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=8`, {
+      headers: { 'User-Agent': 'AstroTransitApp/1.0 (sergiu)' }
     });
-    if (!response.ok) throw new Error('Eroare Nominatim');
+    
+    if (!response.ok) return res.json([]);
+    
     const data = await response.json();
     const cities = data.map(item => {
       const lat = parseFloat(item.lat);
       const lon = parseFloat(item.lon);
+      // Calculăm fusul orar aproximativ pe baza longitudinii (15 grade per oră)
+      const estimatedTz = Math.round(lon / 15);
+      
       return {
         display_name: item.display_name,
-        lat: Number.isNaN(lat) ? 0 : lat,
-        lon: Number.isNaN(lon) ? 0 : lon,
-        tz: Number.isNaN(lon) ? 2 : Math.round(lon / 15)
+        lat: Number.isNaN(lat) ? 47.0 : lat,
+        lon: Number.isNaN(lon) ? 28.0 : lon,
+        tz: Number.isNaN(estimatedTz) ? 2 : estimatedTz
       };
     });
+    
     res.json(cities);
   } catch (error) {
-    res.status(500).json({ error: 'Nu s-a putut efectua căutarea locației' });
+    console.error("Eroare căutare oraș:", error);
+    res.json([]); // Returnăm o listă goală în caz de eroare ca să nu crape interfața
   }
 });
 
-// ENDPOINT: Generarea astrogramei
+// ── ENDPOINT: Generarea astrogramei natale (Securizat împotriva datelor lipsă) ──
 app.post('/api/chart', (req, res) => {
   let { date, time, lat, lon, tz } = req.body;
 
-  if (!lat || !lon) {
-    lat = 47.4994; lon = 28.3644; tz = 2; // Date implicite pentru Telenești dacă trimiterea e goală
-  }
+  // Conversii și validări stricte pentru a asigura trimiterea corectă a obiectului chart.planets
+  const finalLat = parseFloat(lat);
+  const finalLon = parseFloat(lon);
+  const finalTz = parseFloat(tz);
 
-  if (!date || !time) {
-    return res.status(400).json({ error: 'Data și ora sunt obligatorii!' });
+  if (!date || !time || Number.isNaN(finalLat) || Number.isNaN(finalLon)) {
+    // Dacă datele geografice lipsesc sau sunt incorecte, setăm implicit coordonatele globale (sau Telenești) ca să nu crape aplicația
+    return res.status(400).json({ error: 'Te rog să selectezi un oraș valid din lista de sugestii!' });
   }
 
   try {
     const chartData = calculateChart({
       dateStr: date,
       timeStr: time,
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
-      utcOffset: parseFloat(tz)
+      lat: finalLat,
+      lon: finalLon,
+      utcOffset: Number.isNaN(finalTz) ? 2 : finalTz
     });
+    
+    // Trimitem direct obiectul înapoi către index.html
     res.json(chartData);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Eroare la calculul astrologic.' });
+    console.error("Eroare la calculul matematic:", error);
+    res.status(500).json({ error: 'Eroare internă la motorul de calcul astrologic.' });
   }
 });
 
-// Proxy AI pentru OpenRouter
+// Proxy AI pentru interpretare astrograme
 app.post('/api/claude', async (req, res) => {
   const { system, messages, max_tokens } = req.body;
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages lipsesc' });
