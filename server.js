@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { calculateChart } = require('./astro-calc.js');
 
 const app = express();
@@ -10,23 +11,30 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 
-// Îi spunem serverului să citească fișierele direct din rădăcină (cum se vede în poza ta de pe GitHub)
+// Sincronizăm ambele locații posibile pentru fișierele statice
 app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
+// Ruta principală inteligentă (verifică unde se ascunde index.html)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  const rootIndex = path.join(__dirname, 'index.html');
+  const publicIndex = path.join(__dirname, 'public', 'index.html');
+
+  if (fs.existsSync(rootIndex)) {
+    return res.sendFile(rootIndex);
+  } else if (fs.existsSync(publicIndex)) {
+    return res.sendFile(publicIndex);
+  } else {
+    res.status(404).send('Eroare critică: Fișierul index.html nu a fost găsit în nicio locație a proiectului!');
+  }
 });
 
-// Baza de date locală extinsă (Inclusiv Telenești ca să meargă instant!)
+// Baza de date locală pentru orașe
 const CITY_COORDS = {
-  'telenești': ['Telenești', 47.4994, 28.3644, 2],
-  'telenesti': ['Telenești', 47.4994, 28.3644, 2],
-  'chișinău': ['Chișinău', 47.0105, 28.8638, 2],
-  'chisinau': ['Chișinău', 47.0105, 28.8638, 2],
-  'balti': ['Bălți', 47.7617, 27.9289, 2],
-  'bălți': ['Bălți', 47.7617, 27.9289, 2],
-  'bucurești': ['București', 44.4268, 26.1025, 2],
-  'bucuresti': ['București', 44.4268, 26.1025, 2]
+  'telenești': ['Telenești', 47.4994, 28.3644, 2], 'telenesti': ['Telenești', 47.4994, 28.3644, 2],
+  'chișinău': ['Chișinău', 47.0105, 28.8638, 2], 'chisinau': ['Chișinău', 47.0105, 28.8638, 2],
+  'balti': ['Bălți', 47.7617, 27.9289, 2], 'bălți': ['Bălți', 47.7617, 27.9289, 2],
+  'bucurești': ['București', 44.4268, 26.1025, 2], 'bucuresti': ['București', 44.4268, 26.1025, 2]
 };
 
 // ENDPOINT: Căutare orașe
@@ -67,15 +75,12 @@ app.get('/api/cities', async (req, res) => {
   }
 });
 
-// ENDPOINT: Generarea astrogramei (Acceptă și parametri veniți ca text/numere)
+// ENDPOINT: Generarea astrogramei
 app.post('/api/chart', (req, res) => {
   let { date, time, lat, lon, tz } = req.body;
 
-  // Dacă datele vin din formular dar nu sunt selectate complet din lista de orașe, căutăm Telenești implicit
   if (!lat || !lon) {
-    lat = 47.4994;
-    lon = 28.3644;
-    tz = 2;
+    lat = 47.4994; lon = 28.3644; tz = 2; // Date implicite pentru Telenești dacă trimiterea e goală
   }
 
   if (!date || !time) {
@@ -97,12 +102,10 @@ app.post('/api/chart', (req, res) => {
   }
 });
 
-// Proxy AI pentru interpretare astrograme
+// Proxy AI pentru OpenRouter
 app.post('/api/claude', async (req, res) => {
   const { system, messages, max_tokens } = req.body;
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ error: 'messages lipsesc' });
-  }
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages lipsesc' });
   try {
     const allMessages = [];
     if (system) allMessages.push({ role: 'system', content: system });
