@@ -7,7 +7,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "astronomia": "^0.2.1",
+    "astronomia": "0.1.2",
     "cors": "^2.8.5",
     "express": "^4.19.2"
   },
