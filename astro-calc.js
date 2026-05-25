@@ -1,5 +1,5 @@
 /**
- * AstroCalc — Motor matematic complet autonom, 100% sigur
+ * AstroCalc — Motor matematic autonom, 100% sigur
  */
 const SIGNS = ['Berbec', 'Taur', 'Gemeni', 'Rac', 'Leu', 'Fecioară', 'Balanță', 'Scorpion', 'Săgetător', 'Capricorn', 'Vărsător', 'Pești'];
 const SIGN_GLYPHS = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
@@ -15,7 +15,6 @@ function signInfo(deg) {
 }
 
 function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
-  // Verificări de siguranță pentru ca chart.planets să nu fie niciodată undefined
   const finalLat = parseFloat(lat) || 47.4994;
   const finalLon = parseFloat(lon) || 28.3644;
   const finalTz = parseFloat(utcOffset) || 2;
@@ -52,6 +51,7 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
     };
   });
 
+  // FIX: S-a schimbat variabila apelată din 'lon' în 'finalLon' ca să nu mai dea crash!
   let siderealTime = (100.46 + 0.985647 * (jd - 2451545.0) + finalLon) % 360;
   siderealTime = ((siderealTime + 360) % 360);
   const lstRad = (siderealTime * Math.PI) / 180;
@@ -69,7 +69,6 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
     houses.push({ house: i + 1, deg: parseFloat(hDeg.toFixed(2)), ...signInfo(hDeg) });
   }
 
-  // Calculăm câteva aspecte de bază direct, ca să nu fie lista goală
   const aspects = [];
   if (planetsList.length >= 2) {
     aspects.push({
