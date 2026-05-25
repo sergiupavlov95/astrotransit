@@ -11,6 +11,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 app.use(cors());
 app.use(express.json());
 
+// Servim fișierele din folderul 'public' și rădăcină
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
   res.status(404).send('index.html lipseste!');
 });
 
+// Ruta pentru orase
 app.get('/api/cities', async (req, res) => {
   const query = (req.query.q || '').trim();
   if (!query || query.length < 2) return res.json([]);
@@ -42,6 +44,7 @@ app.get('/api/cities', async (req, res) => {
   }
 });
 
+// Ruta pentru astrogramă
 app.post('/api/chart', (req, res) => {
   try {
     const { date, time, lat, lon, tz, latitude, longitude } = req.body;
@@ -64,17 +67,14 @@ app.post('/api/chart', (req, res) => {
 
     return res.json(chartData);
   } catch (error) {
-    console.error("Crash interceptat:", error);
-    // Siguranță absolută: trimitem structură JSON validă chiar dacă motorul dă erori în cazuri extreme
+    console.error(error);
     return res.status(200).json({
-      error: 'Ajustare automată de date.',
-      planets: [],
-      houses: [],
-      aspects: [],
+      error: 'Ajustare automată.',
+      planets: [], houses: [], aspects: [],
       ascendant: { deg: 0, sign: 'Berbec', glyph: '♈', signDeg: 0 },
       mc: { deg: 0, sign: 'Berbec', glyph: '♈', signDeg: 0 }
     });
   }
 });
 
-app.listen(PORT, () => console.log(`Server ruleaza stabil pe ${PORT}`));
+app.listen(PORT, () => console.log(`Server live`));
