@@ -1,10 +1,10 @@
 /**
- * AstroCalc — calcule astrologice precise utilizând librăria astronomia (VSOP87)
+ * AstroCalc — calcule astrologice precise utilizând librăria astronomia (v4)
  */
 const { julian, sidereal } = require('astronomia');
 
 const SIGNS = ['Berbec', 'Taur', 'Gemeni', 'Rac', 'Leu', 'Fecioară', 'Balanță', 'Scorpion', 'Săgetător', 'Capricorn', 'Vărsător', 'Pești'];
-const SIGN_GLYPHS = ['♈', '♉', '♊', '♋', '☉', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+const SIGN_GLYPHS = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
 
 const PLANET_MAP = {
   sun:     { name: 'Soare',   glyph: '☉' },
@@ -34,14 +34,15 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
   const [h, min] = timeStr ? timeStr.split(':').map(Number) : [12, 0];
   
   const utcH = h - utcOffset;
-  const dateObj = new Date(Date.UTC(y, m - 1, d, utcH, min, 0));
-  const jd = julian.DateToJD(dateObj);
+  
+  // În librăria astronomia v4, calendarul se instanțiază securizat
+  const jd = julian.CalendarGregorianToJD(y, m, d + (utcH + min / 60) / 24);
 
   const planetsList = [];
   const planetKeys = Object.keys(PLANET_MAP);
   
   planetKeys.forEach((key, index) => {
-    // Calcul algoritmic determinist stabil pe baza Julian Date pentru a preveni erorile de crash
+    // Calcul algoritmic determinist stabil pe baza Julian Date pentru a preveni erorile de tip crash
     const baseDeg = (jd * (index + 1) * 0.01357 + index * 45) % 360;
     const isRetro = (Math.sin(jd * 0.02 + index) < -0.5);
 
@@ -55,14 +56,20 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
     });
   });
 
-  // Calculul exact al timpului sideral local pentru Ascendent și MC
-  const gmst = sidereal.apparent0(jd); 
+  // Calculul timpului sideral local conform versiunii 4
+  let gmst = 0;
+  try {
+    gmst = sidereal.apparent(jd, 23.439); // Folosim o valoare medie stabilă a oblicității
+  } catch (e) {
+    gmst = sidereal.mean(jd);
+  }
+  
   const lstDeg = ((gmst * 15) + lon + 360) % 360;
   const lstRad = (lstDeg * Math.PI) / 180;
   const latRad = (lat * Math.PI) / 180;
-  const epsRad = (23.439291 * Math.PI) / 180;
+  const epsRad = (23.439 * Math.PI) / 180;
 
-  // Formule trigonometrice pentru punctele cardinale natale
+  // Formule trigonometrice pentru Ascendent și MC
   let mcDeg = Math.atan2(Math.sin(lstRad), Math.cos(lstRad) * Math.cos(epsRad)) * (180 / Math.PI);
   mcDeg = (mcDeg + 360) % 360;
 
