@@ -15,6 +15,7 @@ function signInfo(deg) {
 }
 
 function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
+  // Conversie ultra-sigură a parametrilor de intrare direct din obiectul primit
   const finalLat = parseFloat(lat) || 47.4994;
   const finalLon = parseFloat(lon) || 28.3644;
   const finalTz = parseFloat(utcOffset) || 2;
@@ -51,7 +52,7 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
     };
   });
 
-  // FIX: S-a schimbat variabila apelată din 'lon' în 'finalLon' ca să nu mai dea crash!
+  // CORECTAT: Se folosește exclusiv variabila sigură finalLon extrasă corect la început
   let siderealTime = (100.46 + 0.985647 * (jd - 2451545.0) + finalLon) % 360;
   siderealTime = ((siderealTime + 360) % 360);
   const lstRad = (siderealTime * Math.PI) / 180;
@@ -69,22 +70,13 @@ function calculateChart({ dateStr, timeStr, lat, lon, utcOffset }) {
     houses.push({ house: i + 1, deg: parseFloat(hDeg.toFixed(2)), ...signInfo(hDeg) });
   }
 
-  const aspects = [];
-  if (planetsList.length >= 2) {
-    aspects.push({
-      p1: planetsList[0].name, p2: planetsList[1].name,
-      g1: planetsList[0].glyph, g2: planetsList[1].glyph,
-      type: 'Sextil', symbol: '⚹', color: '#5DCAA5', orb: 1.2
-    });
-  }
-
   return {
     jd, date: dateStr, time: timeStr, lat: finalLat, lon: finalLon,
     planets: planetsList,
     ascendant: { deg: parseFloat(ascDeg.toFixed(2)), ...signInfo(ascDeg) },
     mc: { deg: parseFloat(mcDeg.toFixed(2)), ...signInfo(mcDeg) },
     houses,
-    aspects,
+    aspects: [],
     hasTime: true
   };
 }
