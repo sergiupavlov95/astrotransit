@@ -10,15 +10,15 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 
-// Servirea fișierelor statice direct din rădăcina proiectului
-app.use(express.static(__dirname));
+// ── FIX: Îi spunem Express-ului că toate fișierele vizuale sunt în folderul 'public' ──
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Forțăm Express să trimită index.html la accesarea link-ului principal
+// Când cineva accesează site-ul, trimitem index.html din interiorul folderului public
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Baza de date locală rapidă pentru orașe
+// ── Baza de date locală pentru orașe ──
 const CITY_COORDS = {
   'chișinău': ['Chișinău', 47.0105, 28.8638, 2], 'balti': ['Bălți', 47.7617, 27.9289, 2],
   'bălți': ['Bălți', 47.7617, 27.9289, 2], 'tiraspol': ['Tiraspol', 46.8403, 29.6433, 2],
@@ -35,7 +35,7 @@ const CITY_COORDS = {
   'paris': ['Paris', 48.8566, 2.3522, 1], 'new york': ['New York', 40.7128, -74.0060, -5]
 };
 
-// ENDPOINT: Căutare orașe
+// ── ENDPOINT: Căutare orașe ──
 app.get('/api/cities', async (req, res) => {
   const query = (req.query.q || '').trim().toLowerCase();
   if (!query || query.length < 2) return res.json([]);
@@ -73,7 +73,7 @@ app.get('/api/cities', async (req, res) => {
   }
 });
 
-// ENDPOINT: Calcul Astrologic
+// ── ENDPOINT: Calcul Astrologic ──
 app.post('/api/chart', (req, res) => {
   const { date, time, lat, lon, tz } = req.body;
   if (!date || !time || lat === undefined || lon === undefined || tz === undefined) {
@@ -89,12 +89,12 @@ app.post('/api/chart', (req, res) => {
     });
     res.json(chartData);
   } catch (error) {
-    console.error('Astro-calc error:', error);
-    res.status(500).json({ error: 'Eroare la motorul de calcul astrologic.' });
+    console.error(error);
+    res.status(500).json({ error: 'Eroare la calculul astrologic.' });
   }
 });
 
-// ENDPOINT: Proxy Inteligență Artificială
+// ── Proxy AI pentru OpenRouter ──
 app.post('/api/claude', async (req, res) => {
   const { system, messages, max_tokens } = req.body;
   if (!messages || !Array.isArray(messages)) {
@@ -122,7 +122,7 @@ app.post('/api/claude', async (req, res) => {
     });
 
     const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ error: 'Eroare OpenRouter API' });
+    if (!response.ok) return res.status(response.status).json({ error: 'Eroare AI' });
     res.json({ content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }] });
   } catch (err) {
     res.status(500).json({ error: err.message });
