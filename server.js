@@ -9,79 +9,68 @@ const PORT = process.env.PORT || 3000;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 app.use(cors());
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json());
 
-app.use(express.static(__dirname));
+// Îi spunem serverului să servească fișierele din folderul 'public'
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
-  const rootIndex = path.join(__dirname, 'index.html');
   const publicIndex = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(rootIndex)) return res.sendFile(rootIndex);
+  const rootIndex = path.join(__dirname, 'index.html');
+  
   if (fs.existsSync(publicIndex)) return res.sendFile(publicIndex);
-  res.status(404).send('Fișierul index.html nu a fost găsit!');
+  if (fs.existsSync(rootIndex)) return res.sendFile(rootIndex);
+  res.status(404).send('index.html nu a fost gasit!');
 });
 
-// Endpoint pentru sugestii în timp real
 app.get('/api/cities', async (req, res) => {
   const query = (req.query.q || '').trim();
   if (!query || query.length < 2) return res.json([]);
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5`, {
-      headers: { 'User-Agent': 'AstroTransitApp/1.0 (sergiu)' }
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6`, {
+      headers: { 'User-Agent': 'AstroTransit/1.0' }
     });
-    if (!response.ok) return res.json([]);
     const data = await response.json();
     const cities = data.map(item => ({
       display_name: item.display_name,
-      lat: parseFloat(item.lat) || 0,
-      lon: parseFloat(item.lon) || 0,
-      tz: Math.round((parseFloat(item.lon) || 0) / 15)
+      lat: parseFloat(item.lat),
+      lon: parseFloat(item.lon),
+      tz: Math.round(parseFloat(item.lon) / 15) || 2
     }));
     res.json(cities);
-  } catch (error) {
+  } catch (e) {
     res.json([]);
   }
 });
 
-// ── ENDPOINT REPARAT: Calculează astrograma chiar dacă primește doar textul orașului! ──
 app.post('/api/chart', async (req, res) => {
-  let { date, time, lat, lon, tz, city } = req.body;
+  // Prindem absolut toți parametrii posibili pe care îi poate trimite formularul tău
+  let { date, time, lat, lon, tz, city, latitude, longitude } = req.body;
 
-  let finalLat = parseFloat(lat);
-  let finalLon = parseFloat(lon);
+  let finalLat = parseFloat(lat) || parseFloat(latitude);
+  let finalLon = parseFloat(lon) || parseFloat(longitude);
   let finalTz = parseFloat(tz);
 
-  // FIX SALVATOR: Dacă frontend-ul nu a trimis coordonate numerice, dar avem numele orașului la input (text)
-  if ((Number.isNaN(finalLat) || Number.isNaN(finalLon)) && city) {
+  const searchCity = city || req.body.cityName;
+
+  if ((Number.isNaN(finalLat) || Number.isNaN(finalLon)) && searchCity) {
     try {
-      console.log(`Căutare automată pe server pentru orașul: ${city}`);
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`, {
-        headers: { 'User-Agent': 'AstroTransitApp/1.0 (sergiu)' }
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchCity)}&limit=1`, {
+        headers: { 'User-Agent': 'AstroTransit/1.0' }
       });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          finalLat = parseFloat(data[0].lat);
-          finalLon = parseFloat(data[0].lon);
-          finalTz = Math.round(finalLon / 15);
-          console.log(`Oraș găsit automat! Lat: ${finalLat}, Lon: ${finalLon}, Tz: ${finalTz}`);
-        }
+      const data = await response.json();
+      if (data && data.length > 0) {
+        finalLat = parseFloat(data[0].lat);
+        finalLon = parseFloat(data[0].lon);
+        finalTz = Math.round(finalLon / 15) || 2;
       }
-    } catch (err) {
-      console.error("Eroare la căutarea de urgență a orașului:", err);
-    }
+    } catch (err) {}
   }
 
-  // Dacă și după căutarea de urgență datele tot lipsesc, punem Telenești implicit ca să funcționeze garantat!
+  // Forțăm coordonate de siguranță (Telenești) dacă totul e complet gol
   if (Number.isNaN(finalLat) || Number.isNaN(finalLon)) {
-    finalLat = 47.4994;
-    finalLon = 28.3644;
-    finalTz = 2; // Date standard Telenești, Moldova
-  }
-
-  if (!date || !time) {
-    return res.status(400).json({ error: 'Data și ora sunt obligatorii!' });
+    finalLat = 47.4994; finalLon = 28.3644; finalTz = 2;
   }
 
   try {
@@ -94,44 +83,29 @@ app.post('/api/chart', async (req, res) => {
     });
     res.json(chartData);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Eroare internă la motorul de calcul.' });
+    res.status(500).json({ error: 'Eroare calcul.' });
   }
 });
 
-// Proxy AI pentru OpenRouter
 app.post('/api/claude', async (req, res) => {
-  const { system, messages, max_tokens } = req.body;
-  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: 'messages lipsesc' });
+  const { system, messages } = req.body;
   try {
-    const allMessages = [];
-    if (system) allMessages.push({ role: 'system', content: system });
-    allMessages.push(...messages);
-
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://astrotransit-jgyd.onrender.com',
-        'X-Title': 'AstroTransit'
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-lite',
-        messages: allMessages,
-        max_tokens: Math.min(max_tokens || 2000, 4000),
-        temperature: 0.9,
+        messages: [{ role: 'system', content: system || '' }, ...(messages || [])]
       })
     });
-
     const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ error: 'Eroare AI' });
     res.json({ content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server live`));
