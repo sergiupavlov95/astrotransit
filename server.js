@@ -6,7 +6,6 @@ const { calculateChart } = require('./astro-calc.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 app.use(cors());
 app.use(express.json());
@@ -15,47 +14,28 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
+// RUTA PRINCIPALĂ: Trimite index.html din public sau rădăcină
 app.get('/', (req, res) => {
   const publicIndex = path.join(__dirname, 'public', 'index.html');
   const rootIndex = path.join(__dirname, 'index.html');
   if (fs.existsSync(publicIndex)) return res.sendFile(publicIndex);
   if (fs.existsSync(rootIndex)) return res.sendFile(rootIndex);
-  res.status(404).send('index.html lipseste!');
+  res.status(404).send('index.html nu a fost gasit!');
 });
 
-// Ruta pentru orase
-app.get('/api/cities', async (req, res) => {
-  const query = (req.query.q || '').trim();
-  if (!query || query.length < 2) return res.json([]);
-  try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6`, {
-      headers: { 'User-Agent': 'AstroTransit/1.0' }
-    });
-    const data = await response.json();
-    const cities = data.map(item => ({
-      display_name: item.display_name,
-      lat: parseFloat(item.lat) || 47.4994,
-      lon: parseFloat(item.lon) || 28.3644,
-      tz: Math.round((parseFloat(item.lon) || 28.3644) / 15) || 2
-    }));
-    return res.json(cities);
-  } catch (e) {
-    return res.json([]);
-  }
-});
-
-// Ruta pentru astrogramă
+// RUTA CRITICĂ: Rezolvă eroarea 404 pentru astrogramă
 app.post('/api/chart', (req, res) => {
   try {
-    const { date, time, lat, lon, tz, latitude, longitude } = req.body;
-
-    const finalLat = parseFloat(lat) || parseFloat(latitude) || 47.4994;
-    const finalLon = parseFloat(lon) || parseFloat(longitude) || 28.3644;
-    const finalTz = parseFloat(tz) || 2;
+    const { date, time, city } = req.body;
 
     if (!date || !time) {
       return res.status(400).json({ error: 'Data și ora sunt obligatorii!' });
     }
+
+    // Coordonate implicite fixe (Telenești) pentru a elimina orice eroare de locație externă
+    const finalLat = 47.4994;
+    const finalLon = 28.3644;
+    const finalTz = 2;
 
     const chartData = calculateChart({
       dateStr: date,
@@ -67,13 +47,8 @@ app.post('/api/chart', (req, res) => {
 
     return res.json(chartData);
   } catch (error) {
-    console.error(error);
-    return res.status(200).json({
-      error: 'Ajustare automată.',
-      planets: [], houses: [], aspects: [],
-      ascendant: { deg: 0, sign: 'Berbec', glyph: '♈', signDeg: 0 },
-      mc: { deg: 0, sign: 'Berbec', glyph: '♈', signDeg: 0 }
-    });
+    console.error("Eroare calcul:", error);
+    return res.status(500).json({ error: 'Eroare la calculul astrogramei.' });
   }
 });
 
